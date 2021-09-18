@@ -45,9 +45,16 @@ class CCSystem:
 
     def generate_number(self):
         account = str(int(self.last_account) + 1)
-        last_digit = str(7)
-        self.accounts.append(self.IIN + account + last_digit)
+        last_digit = self.get_last_digit(account)
+        self.accounts.append(self.IIN + account + str(last_digit))
         self.last_account = account
+
+    def get_last_digit(self, account):
+        loc_account = self.IIN + account
+        digits = [x - 9 if x > 9 else x for x in
+                  [2 * int(loc_account[i]) if i % 2 == 0 else int(loc_account[i])
+                   for i in range(len(loc_account))]]
+        return (10 - (sum(digits) % 10)) % 10
 
     def pin_and_balance(self):
         return {'pin': f"{int(10000 * random.random()):04d}", 'balance': 0}

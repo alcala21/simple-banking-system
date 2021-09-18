@@ -64,15 +64,55 @@ class CCSystem:
                    for i in range(len(_account))]]
         return str((10 - (sum(digits) % 10)) % 10)
 
+    def passes_luhn(self, _account):
+        digits = [x - 9 if x > 9 else x for x in
+                  [2 * int(_account[i]) if i % 2 == 0 else int(_account[i])
+                   for i in range(len(_account))]]
+        return sum(digits) % 10 == 0
+
+
     def show_balance(self, account):
+        balance_menu = "\n".join(["1. Balance",
+                                   "2. Add income",
+                                   "3. Do transfer",
+                                   "4. Close account",
+                                   "5. Log out",
+                                   "0. Exit", "> "])
         while True:
-            selection = int(input("1. Balance \n2. Log out \n0. Exit\n> "))
+            selection = int(input(balance_menu))
             if selection == 1:
                 self.print_message(f"Balance: {self.balance}")
             elif selection == 2:
+                income = int(input("\n".join(["", "Enter income:", "> "])))
+                self.add_income(self.account, income)
+                self.short_message("Income was added!")
+            elif selection == 3:
+                message = ["Transfer", "Enter card number:", "> "]
+                oaccount = input("\n".join(message))
+                if not self.passes_luhn(oaccount):
+                    message = "Probably you made a mistake in the card number. Please try again!"
+                    self.short_message(message)
+                elif self.account_exists(oaccount):
+                    message = ["Enter how much money you want to transfer:", "> "]
+                    amount = int(input("\n".join(message)))
+                    if amount > self.balance:
+                        self.short_message("Not enough money!")
+                    else:
+                        self.add_income(oaccount, amount)
+                        self.add_income(self.account, -amount)
+                        self.short_message("Success!")
+                else:
+                    message = "Such a card does not exist."
+                    self.short_message(message)
+
+            elif selection == 4:
+                self.close_account()
+                self.print_message("The account has been closed!")
+                return True
+            elif selection == 5:
                 self.print_message("You have successfully logged out!")
                 return True
-            else:
+            elif selection == 0:
                 return self.bye()
 
     def bye(self):
@@ -81,6 +121,10 @@ class CCSystem:
 
     def print_message(self, message):
         print()
+        print(message)
+        print()
+
+    def short_message(self, message):
         print(message)
         print()
 
@@ -127,6 +171,35 @@ class CCSystem:
             self.pin = _pin
             self.balance = account_info[0]
             return True
+
+    def add_income(self, _account, income):
+        if _account == self.account:
+            self.balance += income
+            _balance = self.balance
+        else:
+            query = """select balance from card where number = ?;"""
+            self.cur.execute(query, (_account, ))
+            _balance = self.cur.fetchone()[0]
+            _balance += income
+
+        query = """update card set balance = ? where number = ?;"""
+        self.cur.execute(query, (_balance, _account))
+        self.conn.commit()
+
+    def account_exists(self, _account):
+        query = """select balance from card where number = ?;"""
+        self.cur.execute(query, (_account, ))
+        _balance = self.cur.fetchone()
+        if not _balance:
+            return False
+        else:
+            return True
+
+    def close_account(self):
+        query = """delete from card where number = ?"""
+        self.cur.execute(query, (self.account,))
+        self.conn.commit()
+        self.account, self.pin, self.balance = None, None, 0
 
 
 mycard = CCSystem()
